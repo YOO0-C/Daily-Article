@@ -5,20 +5,25 @@ import json
 import urllib.parse
 from datetime import datetime
 from bs4 import BeautifulSoup
-from openai import OpenAI
+import google.generativeai as genai
 
 # ==========================================
 # [설정] 환경 변수에서 값 가져오기
 # ==========================================
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
-# 검색할 키워드 (방산, 자동차)
+# 검색할 키워드
 KEYWORDS = ["방산", "자동차"]
 MAX_ARTICLES_PER_KEYWORD = 5
 
-# OpenAI 클라이언트 설정
-client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+# Gemini API 설정
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    # 빠르고 가벼운 gemini-1.5-flash 모델 사용
+    model = genai.GenerativeModel('gemini-1.5-flash')
+else:
+    model = None
 
 def get_google_news_rss(keyword):
     encoded_keyword = urllib.parse.quote(keyword)
@@ -27,29 +32,21 @@ def get_google_news_rss(keyword):
     return feed.entries[:MAX_ARTICLES_PER_KEYWORD]
 
 def summarize_text(title, description):
-    if not client:
+    if not model:
         soup = BeautifulSoup(description, "html.parser")
         text = soup.get_text()
         return text if text else "요약 정보를 가져올 수 없습니다."
 
-    prompt = f'''
+    prompt = f"""
     다음 뉴스 기사의 제목과 내용을 바탕으로 핵심 내용을 한국어로 3줄 요약해주세요.
     
     제목: {title}
     내용: {description}
-    '''
+    """
     
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "너는 뉴스 요약 전문 AI 에이전트야."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=200,
-            temperature=0.5
-        )
-        return response.choices[0].message.content.strip()
+        response = model.generate_content(prompt)
+        return response.text.strip()
     except Exception as e:
         print(f"요약 중 오류 발생: {e}")
         return "요약 생성 실패"
