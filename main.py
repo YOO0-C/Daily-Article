@@ -1,4 +1,5 @@
 import os
+import time
 import feedparser
 import requests
 import json
@@ -27,7 +28,6 @@ def get_google_news_rss(keyword):
     encoded_keyword = urllib.parse.quote(keyword)
     rss_url = f"https://news.google.com/rss/search?q={encoded_keyword}&hl=ko&gl=KR&ceid=KR:ko"
     
-    # 봇 차단 우회를 위한 브라우저 위장
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
@@ -53,8 +53,10 @@ def summarize_text(title, description):
     내용: {description}
     """
     
+    # 무료 요금제 제한(분당 5회)을 피하기 위해 요청 전 4초 대기
+    time.sleep(4)
+    
     try:
-        # 최신 SDK 요약 생성 메서드
         response = client.models.generate_content(
             model='gemini-3.6-flash',
             contents=prompt,
