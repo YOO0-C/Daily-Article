@@ -5,7 +5,7 @@ import json
 import urllib.parse
 from datetime import datetime
 from bs4 import BeautifulSoup
-import google.generativeai as genai
+from google import genai
 
 # ==========================================
 # [설정] 환경 변수에서 값 가져오기
@@ -17,25 +17,22 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 KEYWORDS = ["방산", "자동차"]
 MAX_ARTICLES_PER_KEYWORD = 5
 
-# Gemini API 설정
+# 최신 Gemini 클라이언트 설정
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    # 빠르고 가벼운 gemini-1.5-flash 모델 사용
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    client = genai.Client(api_key=GEMINI_API_KEY)
 else:
-    model = None
+    client = None
 
 def get_google_news_rss(keyword):
     encoded_keyword = urllib.parse.quote(keyword)
     rss_url = f"https://news.google.com/rss/search?q={encoded_keyword}&hl=ko&gl=KR&ceid=KR:ko"
     
-    # 구글의 봇 차단을 피하기 위해 일반 브라우저인 척 위장(User-Agent)
+    # 봇 차단 우회를 위한 브라우저 위장
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
     
     try:
-        # requests로 먼저 안전하게 가져온 뒤 feedparser에 넘김
         response = requests.get(rss_url, headers=headers)
         feed = feedparser.parse(response.content)
         return feed.entries[:MAX_ARTICLES_PER_KEYWORD]
@@ -44,7 +41,7 @@ def get_google_news_rss(keyword):
         return []
 
 def summarize_text(title, description):
-    if not model:
+    if not client:
         soup = BeautifulSoup(description, "html.parser")
         text = soup.get_text()
         return text if text else "요약 정보를 가져올 수 없습니다."
@@ -57,7 +54,11 @@ def summarize_text(title, description):
     """
     
     try:
-        response = model.generate_content(prompt)
+        # 최신 SDK 요약 생성 메서드
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=prompt,
+        )
         return response.text.strip()
     except Exception as e:
         print(f"요약 중 오류 발생: {e}")
