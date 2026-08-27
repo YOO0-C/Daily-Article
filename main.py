@@ -28,8 +28,20 @@ else:
 def get_google_news_rss(keyword):
     encoded_keyword = urllib.parse.quote(keyword)
     rss_url = f"https://news.google.com/rss/search?q={encoded_keyword}&hl=ko&gl=KR&ceid=KR:ko"
-    feed = feedparser.parse(rss_url)
-    return feed.entries[:MAX_ARTICLES_PER_KEYWORD]
+    
+    # 구글의 봇 차단을 피하기 위해 일반 브라우저인 척 위장(User-Agent)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    
+    try:
+        # requests로 먼저 안전하게 가져온 뒤 feedparser에 넘김
+        response = requests.get(rss_url, headers=headers)
+        feed = feedparser.parse(response.content)
+        return feed.entries[:MAX_ARTICLES_PER_KEYWORD]
+    except Exception as e:
+        print(f"뉴스 수집 중 오류: {e}")
+        return []
 
 def summarize_text(title, description):
     if not model:
